@@ -1,0 +1,15 @@
+.vs/CopilotSnapshots/
+.exe
+.obj
+x64/
+*.exe
+.vs/
+.idea/
+/
+imgui.ini
+Project_FastPIC_BACKUP.cpp
+Project_FastPIC.vcxproj.user
+*.dll
+*.zip
+exiftool_files/
+Project_FastPIC/

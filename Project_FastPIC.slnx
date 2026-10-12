@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Project_FastPIC.vcxproj" Id="7a83cafb-28ac-4924-acf7-e187e3402e38" />
+</Solution>
