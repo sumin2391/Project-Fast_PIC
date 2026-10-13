@@ -36,7 +36,7 @@
 #define NOMINMAX
 #endif
 
-// 🌟 stb_image 라이브러리 연결 (이 두 줄이 반드시 세트로 있어야 작동합니다!)
+//  stb_image 라이브러리 연결
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -51,7 +51,7 @@
 #pragma execution_character_set("utf-8")
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "propsys.lib")
-#pragma comment(lib, "d3d11.lib") // 🌟 그래픽 가속(DirectX 11) 라이브러리 연결!
+#pragma comment(lib, "d3d11.lib") //  그래픽 가속(DirectX 11) 라이브러리 연결!
 
 namespace fs = std::filesystem;
 
@@ -288,7 +288,7 @@ ID3D11ShaderResourceView* LoadRawPreviewToSRV(const std::wstring& filename, int*
     if (outH) *outH = 0;
     LibRaw RawProcessor;
 
-    // 🌟 윈도우 유니코드(wide-char) 경로를 직접 전달하여 한글 깨짐 방지
+    //  윈도우 유니코드(wide-char) 경로를 직접 전달하여 한글 깨짐 방지
     int ret = RawProcessor.open_file(filename.c_str());
     if (ret != LIBRAW_SUCCESS) {
         RawProcessor.recycle();
@@ -460,7 +460,7 @@ static std::atomic<int> g_cancelForRequestId{ 0 };
 static std::atomic<int> g_initialPreloadRequestId{ 0 };
 static std::atomic<int> g_initialPreloadTotal{ 0 };
 static std::atomic<int> g_initialPreloadCompleted{ 0 };
-// 🌟 원본 해상도 로딩 옵션을 실시간으로 스레드에 전달할 전역 플래그
+//  원본 해상도 로딩 옵션을 실시간으로 스레드에 전달할 전역 플래그
 static std::atomic<bool> g_loadFullResolution{ false };
 
 // 큐 사이즈 조회 helpers
@@ -559,7 +559,7 @@ bool DecodeImageToRGBA(const fs::path& path, std::vector<unsigned char>& outRGBA
         UINT targetWidth = sourceWidth;
         UINT targetHeight = sourceHeight;
 
-        // 🌟 원본 화소로 불러오기(체크박스)가 꺼져 있을 때만(false) 이미지를 2048px로 최적화 축소합니다.
+        //  원본 화소로 불러오기(체크박스)가 꺼져 있을 때만(false) 이미지를 2048px로 최적화 축소합니다.
         if (!g_loadFullResolution.load()) {
             const UINT maxSourceDimension = (std::max)(sourceWidth, sourceHeight);
             if (maxSourceDimension > MAX_DIMENSION) {
@@ -700,7 +700,7 @@ bool DecodeImageToRGBA(const fs::path& path, std::vector<unsigned char>& outRGBA
     return true;
 }
 
-// 🌟 GetExifData 함수 전방 선언 (컴파일러에게 미리 존재를 알림)
+//  GetExifData 함수 전방 선언 (컴파일러에게 미리 존재를 알림)
 std::string GetExifData(const std::wstring& filePath, time_t& outUnixTime, int& outOrientation);
 
 // 디코더 스레드 함수
@@ -723,7 +723,7 @@ void DecodeThreadFunc() {
         }
         UploadItem item; item.key = req.key; item.requestId = req.requestId;
 
-        // 🌟 지연 로딩: 이 스레드가 이미지를 화면에 올리기 직전에 진짜 EXIF 정보를 파싱합니다. (메인 화면 멈춤 방지)
+        //  지연 로딩: 이 스레드가 이미지를 화면에 올리기 직전에 진짜 EXIF 정보를 파싱합니다. (메인 화면 멈춤 방지)
         int currentOrientation = 1;
         time_t dummyTime = 0;
         GetExifData(req.path.wstring(), dummyTime, currentOrientation);
@@ -981,7 +981,7 @@ static std::string WideStringToUtf8(const std::wstring& w) {
     return std::string(s.c_str(), s.size());
 }
 
-// --- 🌟 DirectX 11 기본 공사 (Boilerplate) ---
+// ---  DirectX 11 기본 공사 (Boilerplate) ---
 static ID3D11Device* g_pd3dDevice = nullptr;
 static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain* g_pSwapChain = nullptr;
@@ -1093,7 +1093,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             CreateRenderTarget();
         }
         return 0;
-        // 🌟 창 최소 크기 제한 (WM_GETMINMAXINFO 추가)
+        //  창 최소 크기 제한 (WM_GETMINMAXINFO 추가)
     case WM_GETMINMAXINFO: {
         MINMAXINFO* mmi = (MINMAXINFO*)lParam;
         mmi->ptMinTrackSize.x = 1024; // 최소 가로 픽셀
@@ -1186,7 +1186,7 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-    // 🌟 한글 폰트 로드 (윈도우 기본 맑은 고딕 사용)
+    //  한글 폰트 로드 (윈도우 기본 맑은 고딕 사용)
     ImFont* font = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\malgun.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
 
     ApplyGlassmorphismStyle(); // 다크 글래스모피즘 스타일 적용
@@ -1200,7 +1200,7 @@ int main() {
         g_decodeThreads.emplace_back(DecodeThreadFunc);
     }
 
-    // 🌟 UI용 상태 변수들
+    //  UI용 상태 변수들
     std::string currentFolderPath = "선택된 폴더가 없습니다.";
     std::wstring wCurrentFolderPath;
     std::vector<ImageData> loadedImages;
@@ -1212,6 +1212,9 @@ int main() {
     ImVec2 panOffset(0.0f, 0.0f);
     static bool showAFPoint = false;
     static bool showHelpPopup = false;
+    static bool showSupportPopup = false; // 🌟 추가: 후원 팝업 상태 및 QR 코드 텍스처 포인터
+    int qrWidth = 0, qrHeight = 0;
+    ID3D11ShaderResourceView* g_qrCodeSRV = LoadTextureFromFileToSRV("qr_code.png", &qrWidth, &qrHeight); // 프로그램 시작 시 qr_code.png 파일을 읽어와 GPU에 로드해 둡니다.
     bool initialPreloadActive = false;
     int initialPreloadBatchId = 0;
     int initialPreloadCount = 0;
@@ -1256,7 +1259,7 @@ int main() {
                 g_currentImageSRV = cached; g_currentImageWidth = w; g_currentImageHeight = h; selectedRequestId = 0;
             }
 
-            // 🌟 그룹 단위 스마트 프리패칭 (Pre-fetching)
+            //  그룹 단위 스마트 프리패칭 (Pre-fetching)
             std::vector<int> indicesToLoad;
             int currentGroup = img.groupID;
 
@@ -1425,7 +1428,7 @@ int main() {
         }
 
         // ============================================
-        // 🌟 여기가 우리가 만들 UI 창(Workspace)입니다!
+        //  여기가 우리가 만들 UI 창(Workspace)입니다!
         // ============================================
 
         // 창 크기를 윈도우 전체에 꽉 채웁니다.
@@ -1435,15 +1438,20 @@ int main() {
         ImGui::Begin("FastPIC - Culling Workspace", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
         ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "=== FastPIC: Culling Workspace ===");
-        ImGui::SameLine(ImGui::GetWindowWidth() - 120.0f);
+        ImGui::SameLine(ImGui::GetWindowWidth() - 260.0f);
 
-        if (ImGui::Button("도움말 (Help)", ImVec2(-1, 0))) {
+        // 후원 버튼 (클릭 시 기본 브라우저로 Buy Me a Coffee 열기)
+        if (ImGui::Button("Buy me a coffee", ImVec2(130, 0))) {
+            ShellExecuteA(NULL, "open", "https://buymeacoffee.com/baesumin0211", NULL, NULL, SW_SHOWNORMAL);
+        }
+        ImGui::SameLine();
+
+        // 기존 도움말 버튼
+        if (ImGui::Button("도움말 (Help)", ImVec2(110, 0))) {
             showHelpPopup = true;
         }
 
-        ImGui::Spacing();
-
-        // 🌟 원본 해상도 토글 UI 추가
+        //  원본 해상도 토글 UI 추가
         static bool ui_loadFullResolution = false;
         if (ImGui::Checkbox("원본 화소로 불러오기 (고화질 / 메모리 사용량 증가)", &ui_loadFullResolution)) {
             g_loadFullResolution.store(ui_loadFullResolution);
@@ -1474,7 +1482,7 @@ int main() {
                 ReleaseCurrentImage();
 
                 try {
-                    // 🌟 수정 1: UTF-8(currentFolderPath) 대신 유니코드(wCurrentFolderPath)로 폴더 순회
+                    //  수정 1: UTF-8(currentFolderPath) 대신 유니코드(wCurrentFolderPath)로 폴더 순회
                     for (const auto& entry : fs::directory_iterator(wCurrentFolderPath)) {
                         if (entry.is_regular_file() && isImageFile(entry.path())) {
 
@@ -1494,7 +1502,7 @@ int main() {
                             }
 
                             ImageData d;
-                            // 🌟 수정 2: .string()을 쓰지 않고 유니코드를 UTF-8로 안전하게 변환하여 저장
+                            //  수정 2: .string()을 쓰지 않고 유니코드를 UTF-8로 안전하게 변환하여 저장
                             d.filePath = WideStringToUtf8(entry.path().wstring());
                             d.wFilePath = entry.path().wstring();
                             d.fileName = WideStringToUtf8(entry.path().filename().wstring());
@@ -1581,7 +1589,7 @@ int main() {
         ImGui::Text("현재 경로: %s", currentFolderPath.c_str());
         ImGui::Separator();
 
-        // 🌟 스캔 결과 리스트 출력 영역 (마우스 스크롤 가능)
+        //  스캔 결과 리스트 출력 영역 (마우스 스크롤 가능)
         if (!loadedImages.empty()) {
             ImGui::Text("총 로드된 사진: %d장 | 생성된 그룹: %d개", (int)loadedImages.size(), totalGroups);
             ImGui::Spacing();
@@ -1590,7 +1598,7 @@ int main() {
                         // 좌우 패널로 분리: 왼쪽은 리스트, 오른쪽은 선택된 사진 뷰어
             ImGui::Columns(2, "TwoPane", true);
 
-            // 🌟 좌측 패널 가로 크기 강제 제한 (최소 500px, 최대 500px)
+            //  좌측 패널 가로 크기 강제 제한 (최소 500px, 최대 500px)
             float leftWidth = ImGui::GetColumnWidth(0);
             if (leftWidth < 500.0f) ImGui::SetColumnWidth(0, 500.0f);
             if (leftWidth > 500.0f) ImGui::SetColumnWidth(0, 500.0f);
@@ -1637,7 +1645,7 @@ int main() {
                 // 2) 각 사진 항목은 stateless하게 정확히 20픽셀 들여쓰기 후 바로 되돌림
                 ImGui::Indent(20.0f);
 
-                // 🌟 현재 그리는 항목이 사용자에 의해 '선택된 항목'이고, 키보드 등으로 선택이 바뀐 순간인지 체크
+                //  현재 그리는 항목이 사용자에 의해 '선택된 항목'이고, 키보드 등으로 선택이 바뀐 순간인지 체크
                 bool isSelected = (selectedIndex == (int)i);
 
                 if (ImGui::Selectable(label, isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
@@ -1646,7 +1654,7 @@ int main() {
                     }
                 }
 
-                // 🌟 명시적으로 선택이 변경되어 신호가 켜졌을 때만 딱 한 번 화면 정중앙(0.5f)으로 스크롤 수행
+                //  명시적으로 선택이 변경되어 신호가 켜졌을 때만 딱 한 번 화면 정중앙(0.5f)으로 스크롤 수행
                 if (isSelected && scrollToSelection) {
                     ImGui::SetScrollHereY(0.5f);
                     scrollToSelection = false; // 스크롤을 완료했으므로 신호를 끕니다.
@@ -1825,8 +1833,8 @@ int main() {
                 ImGui::PopClipRect();
 
                 // --------------------------------------------------------------
-                                // 🌟 AF Point 및 PiP 토글 UI (좌측 하단)
-                                // --------------------------------------------------------------
+                //  AF Point 및 PiP 토글 UI (좌측 하단)
+                // --------------------------------------------------------------
                 static bool showPiP = true; // PiP 뷰어 표시 상태를 저장할 정적 변수 추가
 
                 const char* textAF = "AF Point (초점)";
@@ -1858,7 +1866,7 @@ int main() {
                 // [ 뷰어 2: AF 영역 확대 뷰어 (우측 하단 PiP 오버레이 - 정사각형) ]
                 // ==============================================================
 
-// 사용자가 체크박스를 켰을 때만 PiP 창을 렌더링합니다.
+                // 사용자가 체크박스를 켰을 때만 PiP 창을 렌더링합니다.
                 if (showPiP) {
                     // 1. PiP 크기를 정적으로 기억하여 사용자 조절이 영구 유지되도록 함
                     static float pipBaseSize = 0.0f;
@@ -1922,7 +1930,7 @@ int main() {
                     ImGui::PopClipRect();
 
                     // --------------------------------------------------------
-                    // 🌟 PiP 크기 수동 조절 핸들 (좌측 상단 모서리)
+                    //  PiP 크기 수동 조절 핸들 (좌측 상단 모서리)
                     // --------------------------------------------------------
                     ImVec2 gripPos = canvasMin2;
                     // 크기 조절 손잡이 디자인 (회색 삼각형과 빗금 2개)
@@ -1950,7 +1958,7 @@ int main() {
                     }
 
                     // --------------------------------------------------------
-                    // 🌟 돋보기 배율 조절 UI (그립과 안 겹치게 '우측 하단'으로 이동)
+                    //  돋보기 배율 조절 UI (그립과 안 겹치게 '우측 하단'으로 이동)
                     // --------------------------------------------------------
                     ImVec2 panelMin = ImVec2(canvasMax2.x - 160.0f, canvasMax2.y - 70.0f);
                     ImVec2 panelMax = ImVec2(canvasMax2.x - 10.0f, canvasMax2.y - 10.0f);
@@ -1959,7 +1967,7 @@ int main() {
                     pipDrawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 80, 255), 6.0f);
 
                     ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 12, panelMin.y + 8));
-                    ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f), "🔍 AF Focus");
+                    ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f), "AF Focus");
 
                     ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 12, panelMin.y + 32));
                     if (ImGui::Button(" - ##ZoomOut", ImVec2(30, 24))) {
@@ -2029,7 +2037,7 @@ int main() {
                 }
                 ImGui::EndPopup();
             }
-            // 🌟 팝업이 끝나면 반드시 스타일 복구
+            //  팝업이 끝나면 반드시 스타일 복구
             ImGui::PopStyleColor(2);
         }
 
@@ -2037,7 +2045,7 @@ int main() {
         ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 24.0f));
 
-        // 🌟 뒷배경 Dim & 불투명도 증가
+        //  뒷배경 Dim & 불투명도 증가
         ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.85f));
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.1f, 0.12f, 0.16f, 0.98f));
 
@@ -2083,9 +2091,74 @@ int main() {
 
             ImGui::EndPopup();
         }
-        // 🌟 스타일 및 패딩 복구
+        //  스타일 및 패딩 복구
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar();
+
+        // 후원(Support) 모달 팝업
+        if (showSupportPopup) {
+            ImGui::OpenPopup("개발자 후원하기 (Support)");
+        }
+
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(450.0f, 500.0f), ImGuiCond_Appearing);
+
+        // 글래스모피즘 어두운 배경(Dim) 효과 적용
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.85f));
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.1f, 0.12f, 0.16f, 0.98f));
+
+        if (ImGui::BeginPopupModal("개발자 후원하기 (Support)", &showSupportPopup, ImGuiWindowFlags_NoResize)) {
+            float windowWidth = ImGui::GetWindowWidth();
+
+            // 타이틀 중앙 정렬
+            ImGui::Spacing();
+            std::string title = "☕ FastPIC이 마음에 드셨나요?";
+            float titleWidth = ImGui::CalcTextSize(title.c_str()).x;
+            ImGui::SetCursorPosX((windowWidth - titleWidth) * 0.5f);
+            ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.4f, 1.0f), "%s", title.c_str());
+            ImGui::Spacing();
+
+            std::string subtitle = "스마트폰 카메라로 QR 코드를 스캔하여\n개발자에게 커피 한 잔을 선물해 주세요!";
+            // 멀티라인 텍스트 중앙 정렬을 위한 헬퍼 람다
+            auto CenterText = [&](const char* text) {
+                float w = ImGui::CalcTextSize(text).x;
+                ImGui::SetCursorPosX((windowWidth - w) * 0.5f);
+                ImGui::Text("%s", text);
+                };
+            CenterText("스마트폰 앱(토스, 카카오페이 등)으로 QR 코드를 스캔하여");
+            CenterText("개발자에게 시원한 커피 한 잔을 선물해 주세요!");
+            ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+
+            // QR 코드 이미지 렌더링 (중앙 정렬)
+            float imgSize = 220.0f; // QR 코드 출력 크기 (픽셀)
+            if (g_qrCodeSRV) {
+                ImGui::SetCursorPosX((windowWidth - imgSize) * 0.5f);
+                // 흰색 배경이 없으면 QR 인식이 잘 안될 수 있으므로, 하얀색 배경 패널을 먼저 그려줍니다.
+                ImVec2 pos = ImGui::GetCursorScreenPos();
+                ImGui::GetWindowDrawList()->AddRectFilled(pos, ImVec2(pos.x + imgSize, pos.y + imgSize), IM_COL32(255, 255, 255, 255));
+                ImGui::Image((void*)g_qrCodeSRV, ImVec2(imgSize, imgSize));
+            }
+            else {
+                ImGui::SetCursorPosX((windowWidth - 250.0f) * 0.5f);
+                ImGui::TextColored(ImVec4(0.8f, 0.3f, 0.3f, 1.0f), "[ qr_code.png 파일을 찾을 수 없습니다 ]");
+            }
+
+            ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+            CenterText("📸 여러분의 후원이 더 나은 기능을 만드는 원동력이 됩니다.");
+            ImGui::Spacing(); ImGui::Spacing();
+
+            // 닫기 버튼 중앙 정렬
+            float btnWidth = 120.0f;
+            ImGui::SetCursorPosX((windowWidth - btnWidth) * 0.5f);
+            if (ImGui::Button("닫기 (Close)", ImVec2(btnWidth, 0))) {
+                showSupportPopup = false;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+        ImGui::PopStyleColor(2);
+
 
         // 도움말 모달 팝업
         if (showHelpPopup) {
@@ -2094,7 +2167,7 @@ int main() {
         ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(750.0f, 750.0f), ImGuiCond_Appearing);
 
-        // 🌟 뒷배경 Dim & 불투명도 증가
+        //  뒷배경 Dim & 불투명도 증가
         ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0.0f, 0.0f, 0.0f, 0.85f));
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.1f, 0.12f, 0.16f, 0.98f));
 
@@ -2192,7 +2265,7 @@ int main() {
 
             ImGui::EndPopup();
         }
-        // 🌟 스타일 복구
+        //  스타일 복구
         ImGui::PopStyleColor(2);
 
         // 렌더링 
@@ -2204,7 +2277,7 @@ int main() {
 
         ImGui::Render();
 
-        // 🌟 글래스 느낌이 잘 투과되어 보이도록, 빈 배경(도화지) 색상을 세련된 어두운 푸른빛으로 변경
+        //  글래스 느낌이 잘 투과되어 보이도록, 빈 배경(도화지) 색상을 세련된 어두운 푸른빛으로 변경
         const float clear_color_with_alpha[4] = { 0.05f, 0.08f, 0.12f, 1.00f };
 
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
@@ -2224,6 +2297,7 @@ int main() {
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+    if (g_qrCodeSRV) g_qrCodeSRV->Release();
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
