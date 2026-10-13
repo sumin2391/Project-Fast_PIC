@@ -87,7 +87,8 @@ bool GetAFPointViaExifTool(const std::wstring& filePath, int imgW, int imgH, int
     float& afX, float& afY, float& afW, float& afH) {
     if (imgW <= 0 || imgH <= 0) return false;
 
-    std::wstring command = L"exiftool.exe -n -s -ImageWidth -ImageHeight -AFAreaXPosition -AFAreaYPosition -AFAreaWidth -AFAreaHeight \"" + filePath + L"\"";
+    // 🌟 1. 소니 전용 필수 태그(-SonyImageWidth, -SonyImageHeight, -FocusPositionX 등) 추가
+    std::wstring command = L"exiftool.exe -n -s -ImageWidth -ImageHeight -AFAreaXPosition -AFAreaYPosition -AFAreaWidth -AFAreaHeight -SonyImageWidth -SonyImageHeight -FocusPositionX -FocusPositionY -AFPosition -FlexibleSpotPosition -FocusLocation -AFPointSelected \"" + filePath + L"\"";
     FILE* pipe = _wpopen(command.c_str(), L"rt");
     if (!pipe) return false;
 
@@ -115,60 +116,118 @@ bool GetAFPointViaExifTool(const std::wstring& filePath, int imgW, int imgH, int
         };
 
     double exifImageWidth = 0.0, exifImageHeight = 0.0;
-    double x = 0.0, y = 0.0, w = 0.0, h = 0.0;
-    bool hasX = false, hasY = false;
-    bool hasW = false, hasH = false;
-    bool hasExifImageWidth = false, hasExifImageHeight = false;
+    double sonyImgW = 0.0, sonyImgH = 0.0;
+    double x = -1.0, y = -1.0, w = 0.0, h = 0.0;
+
+    // 우선순위에 따른 좌표 저장용 변수
+    double pixelX = -1.0, pixelY = -1.0;
+    double gridX = -1.0, gridY = -1.0;
+
     for (const std::wstring& line : lines) {
         std::vector<double> values;
         parseNumbers(line, values);
         if (values.empty()) continue;
 
-        if (line.find(L"ImageWidth") != std::wstring::npos) {
-            exifImageWidth = values[0];
-            hasExifImageWidth = true;
+        // 공통 이미지 크기 및 소니 센서 크기
+        if (line.find(L"ImageWidth") != std::wstring::npos && line.find(L"Sony") == std::wstring::npos) exifImageWidth = values[0];
+        else if (line.find(L"ImageHeight") != std::wstring::npos && line.find(L"Sony") == std::wstring::npos) exifImageHeight = values[0];
+        else if (line.find(L"SonyImageWidth") != std::wstring::npos) sonyImgW = values[0];
+        else if (line.find(L"SonyImageHeight") != std::wstring::npos) sonyImgH = values[0];
+
+        // 니콘 및 공용 태그
+        else if (line.find(L"AFAreaXPosition") != std::wstring::npos) pixelX = values[0];
+        else if (line.find(L"AFAreaYPosition") != std::wstring::npos) pixelY = values[0];
+        else if (line.find(L"AFAreaWidth") != std::wstring::npos) w = values[0];
+        else if (line.find(L"AFAreaHeight") != std::wstring::npos) h = values[0];
+
+        // 🌟 1순위: 소니 최신 태그 (FocusLocation 처리 강화)
+        else if (line.find(L"FocusLocation") != std::wstring::npos) {
+            if (values.size() >= 4) {
+                // 예: 4608 3072 2808 1772 (센서가로, 센서세로, X, Y)
+                sonyImgW = values[0];
+                sonyImgH = values[1];
+                pixelX = values[2];
+                pixelY = values[3];
+            }
+            else if (values.size() >= 2) {
+                pixelX = values[0];
+                pixelY = values[1];
+            }
         }
-        else if (line.find(L"ImageHeight") != std::wstring::npos) {
-            exifImageHeight = values[0];
-            hasExifImageHeight = true;
+        // 🌟 FlexibleSpotPosition (값이 0 0 인 경우는 비활성화 상태이므로 무시)
+        else if (line.find(L"FlexibleSpotPosition") != std::wstring::npos && values.size() >= 2) {
+            if (values[0] != 0.0 || values[1] != 0.0) {
+                if (pixelX < 0) { // FocusLocation에서 찾은 값이 없을 때만 백업으로 사용
+                    pixelX = values[0];
+                    pixelY = values[1];
+                }
+            }
         }
-        else if (line.find(L"AFAreaXPosition") != std::wstring::npos) {
-            x = values[0];
-            hasX = true;
-        }
-        else if (line.find(L"AFAreaYPosition") != std::wstring::npos) {
-            y = values[0];
-            hasY = true;
-        }
-        else if (line.find(L"AFAreaWidth") != std::wstring::npos) {
-            w = values[0];
-            hasW = true;
-        }
-        else if (line.find(L"AFAreaHeight") != std::wstring::npos) {
-            h = values[0];
-            hasH = true;
+
+        // 🌟 2순위: 소니 구형/기타 그리드(Grid) 태그
+        else if (line.find(L"FocusPositionX") != std::wstring::npos) gridX = values[0];
+        else if (line.find(L"FocusPositionY") != std::wstring::npos) gridY = values[0];
+        else if (line.find(L"AFPosition") != std::wstring::npos && values.size() >= 2) {
+            gridX = values[0];
+            gridY = values[1];
         }
     }
 
-    if (!hasX || !hasY) return false;
-    double sourceW = (hasExifImageWidth && exifImageWidth > 0) ? exifImageWidth : imgW;
-    double sourceH = (hasExifImageHeight && exifImageHeight > 0) ? exifImageHeight : imgH;
-    if (!hasW) w = sourceW * 0.05;
-    if (!hasH) h = sourceH * 0.05;
+    double sourceW = (exifImageWidth > 0) ? exifImageWidth : imgW;
+    double sourceH = (exifImageHeight > 0) ? exifImageHeight : imgH;
 
-    // Treat values in [0, 1] as normalized ratios, values in [0, 100] as percentages,
-    // and larger values as image-pixel coordinates.
+    // =========================================================
+    // 🌟 좌표 결정 로직 (우선순위 및 비례식 적용)
+    // =========================================================
+    if (pixelX >= 0 && pixelY >= 0) {
+        // 소니 최신 기종처럼 센서 기준 크기(sonyImgW)가 같이 넘어온 경우 비례식 적용
+        if (sonyImgW > 0 && sonyImgH > 0) {
+            x = (pixelX / sonyImgW) * sourceW;
+            y = (pixelY / sonyImgH) * sourceH;
+        }
+        else {
+            // 그 외 니콘 등은 픽셀 좌표 그대로 사용
+            x = pixelX;
+            y = pixelY;
+        }
+    }
+    else if (gridX >= 0 && gridY >= 0) {
+        // FocusPositionX/Y 처럼 그리드 좌표만 있을 때
+        double gridW_ref = sourceW;
+        double gridH_ref = sourceH;
+
+        if (sonyImgW > 0) {
+            gridW_ref = sonyImgW;
+            gridH_ref = sonyImgH;
+        }
+        else {
+            if (gridX <= 299.0 && gridY <= 299.0) { gridW_ref = 299.0; gridH_ref = 299.0; }
+            else if (gridX <= 480.0 && gridY <= 320.0) { gridW_ref = 480.0; gridH_ref = 320.0; }
+            else if (gridX <= 640.0 && gridY <= 480.0) { gridW_ref = 640.0; gridH_ref = 480.0; }
+        }
+
+        x = (gridX / gridW_ref) * sourceW;
+        y = (gridY / gridH_ref) * sourceH;
+    }
+
+    if (x < 0 || y < 0) return false;
+
+    if (w <= 0) w = sourceW * 0.05;
+    if (h <= 0) h = sourceH * 0.05;
+
+    // 0~1 사이의 정규화 비율로 변환하거나 퍼센트 환산
     auto normalize = [](double value, double dimension) {
         if (value >= 0.0 && value <= 1.0) return value;
         if (value >= 0.0 && value <= 100.0 && std::floor(value) != value) return value / 100.0;
         return value / dimension;
         };
+
     double nx = normalize(x, sourceW);
     double ny = normalize(y, sourceH);
     double nw = normalize(w, sourceW);
     double nh = normalize(h, sourceH);
 
-    // Apply EXIF orientation to the point and box dimensions.
+    // 카메라 회전(Orientation) 방향에 따른 좌표계 보정
     if (orientation == 6) {
         const double oldX = nx;
         nx = 1.0 - ny;
@@ -191,6 +250,7 @@ bool GetAFPointViaExifTool(const std::wstring& filePath, int imgW, int imgH, int
     afY = static_cast<float>((std::max)(0.0, (std::min)(1.0, ny)));
     afW = static_cast<float>((std::max)(0.005, (std::min)(1.0, nw)));
     afH = static_cast<float>((std::max)(0.005, (std::min)(1.0, nh)));
+
     return true;
 }
 
@@ -1516,8 +1576,8 @@ int main() {
                             d.groupID = 0;
                             loadedImages.push_back(d);
 
-                            // 속도가 빨라졌으니 최대 로딩 한도도 99,999장으로 늘립니다.
-                            if (loadedImages.size() >= 99999) break;
+                            // 속도가 빨라졌으니 최대 로딩 한도도 10000장으로 늘립니다.
+                            if (loadedImages.size() >= 10000) break;
                         }
                     }
                 }
@@ -1835,7 +1895,7 @@ int main() {
                 // --------------------------------------------------------------
                 //  AF Point 및 PiP 토글 UI (좌측 하단)
                 // --------------------------------------------------------------
-                static bool showPiP = true; // PiP 뷰어 표시 상태를 저장할 정적 변수 추가
+                static bool showPiP = false; // PiP 뷰어 표시 상태를 저장할 정적 변수 추가
 
                 const char* textAF = "AF Point (초점)";
                 const char* textPiP = "AF Focus 뷰어 (PiP)";
