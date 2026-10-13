@@ -12,7 +12,7 @@
 <br/>
 
 <!-- ==================== 한국어 버전 (기본 열림) ==================== -->
-<details name="language-switch" open>
+<details name="language-switch">
 <summary><b>🇰🇷 한국어 설명 보기 (Click to Expand / Collapse)</b></summary>
 <br/>
 
@@ -84,7 +84,7 @@
 <br/>
 
 <!-- ==================== 영문 버전 (기본 닫힘) ==================== -->
-<details name="language-switch">
+<details name="language-switch" open>
 <summary><b>🇺🇸 English Documentation (Click to Expand / Collapse)</b></summary>
 <br/>
 

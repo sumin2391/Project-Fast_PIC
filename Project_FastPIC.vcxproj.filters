@@ -79,7 +79,6 @@
     <None Include="ImGui\imgui.ini">
       <Filter>리소스 파일\ImGui</Filter>
     </None>
-    <None Include="ThirdParty\README.md" />
     <None Include="README.md" />
   </ItemGroup>
 </Project>

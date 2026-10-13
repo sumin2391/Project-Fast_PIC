@@ -163,7 +163,6 @@
   <ItemGroup>
     <None Include="ImGui\imgui.ini" />
     <None Include="README.md" />
-    <None Include="ThirdParty\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
