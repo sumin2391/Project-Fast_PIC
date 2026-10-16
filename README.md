@@ -38,9 +38,6 @@ This project was built and evolved upon the minimal project structure and `Image
 ### 📂 Photo Culling & Batch Export
 - **Status Labeling:** Assign 3-color traffic light statuses using the <kbd>1</kbd> (Pick), <kbd>2</kbd> (Hold), and <kbd>3</kbd> (Reject) keys, automatically advancing to the next photo.
 - **Batch Export:** Copy all photos marked as Pick to a target folder at once (<kbd>E</kbd> key) with automatic filename collision handling.
-
-### 🎨 UI & Compatibility
-- Features a translucent Glassmorphism UI with background dimming on modal popups to ensure clear text readability.
 - Fully supports non-ASCII (including Korean) filenames and directory paths via native wide-string (`std::wstring`) handling.
 
 ---
@@ -110,9 +107,6 @@ This project is licensed under the **GPL-3.0 License**. See the `LICENSE` file i
 ### 📂 사진 분류(Culling) 및 일괄 내보내기
 - **상태 라벨링:** 숫자 <kbd>1</kbd>(Pick), <kbd>2</kbd>(Hold), <kbd>3</kbd>(Reject) 키를 통해 3색 신호등 상태를 지정하고 자동으로 다음 사진으로 넘어갑니다.
 - **일괄 내보내기 (Export):** Pick 상태로 분류된 사진들만 지정된 폴더로 파일명 충돌 처리와 함께 일괄 복사(<kbd>E</kbd> 키)합니다.
-
-### 🎨 UI 및 호환성
-- 반투명 유리 질감의 글래스모피즘(Glassmorphism) UI를 적용하였으며, 모달 팝업 출력 시 배경 딤딩(Dimming) 처리로 가독성을 확보했습니다.
 - `std::wstring` 기반의 네이티브 와이드 문자열 처리를 통해 한글 파일명 및 한글 경로를 완벽하게 지원합니다.
 
 ---
