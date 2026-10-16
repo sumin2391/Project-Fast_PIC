@@ -133,7 +133,7 @@ This project is licensed under the **GPL-3.0 License**. See the `LICENSE` file i
 
 ---
 
-## 🤝 Credits & Acknowledgements
+## 🤝 크레딧 및 감사의 글
 
 - **[Dear ImGui](https://github.com/ocornut/imgui):** UI Framework (MIT License)
 - **[LibRaw](https://github.com/LibRaw/LibRaw):** RAW image processing (LGPL 2.1)

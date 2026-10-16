@@ -168,9 +168,6 @@
   <ItemGroup>
     <ResourceCompile Include="Project_FastPIC.rc" />
   </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\FastPicLogo.ico" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
