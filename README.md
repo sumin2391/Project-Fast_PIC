@@ -7,7 +7,17 @@
 ![DirectX 11](https://img.shields.io/badge/DirectX_11-107C10?style=for-the-badge&logo=windows&logoColor=white)
 ![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=for-the-badge)
 
-![Download](https://github.com/sumin2391/Project-Fast_PIC/releases/download/v1.0.0/FastPic.v1.0.0.7z)
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <a href="https://github.com/sumin2391/Project-Fast_PIC/releases/download/v1.0.0/FastPic.v1.0.0.7z">
+          <h2>📥 FastPIC v1.0.0 다운로드 (.7z)</h2>
+        </a>
+      </td>
+    </tr>
+  </table>
+</div>
 
 </div>
 
