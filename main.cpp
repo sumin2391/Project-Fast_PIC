@@ -52,7 +52,7 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "propsys.lib")
 #pragma comment(lib, "d3d11.lib") //  그래픽 가속(DirectX 11) 라이브러리 연결!
-#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+// #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
 namespace fs = std::filesystem;
 

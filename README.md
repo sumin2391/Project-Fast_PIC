@@ -7,6 +7,8 @@
 ![DirectX 11](https://img.shields.io/badge/DirectX_11-107C10?style=for-the-badge&logo=windows&logoColor=white)
 ![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=for-the-badge)
 
+![Download](https://github.com/sumin2391/Project-Fast_PIC/releases/download/v1.0.0/FastPic.v1.0.0.7z)
+
 </div>
 
 <br/>
@@ -133,7 +135,7 @@ This project is licensed under the **GPL-3.0 License**. See the `LICENSE` file i
 
 ---
 
-## 🤝 Credits & Acknowledgements
+## 🤝 크레딧 및 감사의 글
 
 - **[Dear ImGui](https://github.com/ocornut/imgui):** UI Framework (MIT License)
 - **[LibRaw](https://github.com/LibRaw/LibRaw):** RAW image processing (LGPL 2.1)
