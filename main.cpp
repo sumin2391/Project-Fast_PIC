@@ -52,6 +52,7 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "propsys.lib")
 #pragma comment(lib, "d3d11.lib") //  그래픽 가속(DirectX 11) 라이브러리 연결!
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
 namespace fs = std::filesystem;
 
@@ -1296,49 +1297,93 @@ void ApplyFiltersAndSort(std::vector<ImageData>& loadedImages, int& totalGroups)
     }
 }
 
-// 윈도우 OS의 고속 Property API를 이용한 EXIF 추출
+// 윈도우 OS API 및 LibRaw를 이용한 하이브리드 EXIF 추출 엔진
 void LoadExtendedExif(ImageData& img) {
-    IShellItem2* pItem2 = nullptr;
-    HRESULT hr = SHCreateItemFromParsingName(img.wFilePath.c_str(), NULL, IID_PPV_ARGS(&pItem2));
-    if (SUCCEEDED(hr)) {
-        PROPVARIANT propVar;
-        // ISO
-        PropVariantInit(&propVar);
-        if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_ISOSpeed, &propVar)) && propVar.vt == VT_UI2) img.iso = propVar.uiVal;
-        PropVariantClear(&propVar);
-        // 조리개(F)
-        PropVariantInit(&propVar);
-        if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_FNumber, &propVar)) && propVar.vt == VT_R8) img.fNumber = propVar.dblVal;
-        PropVariantClear(&propVar);
-        // 화각(mm)
-        PropVariantInit(&propVar);
-        if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_FocalLength, &propVar)) && propVar.vt == VT_R8) img.focalLength = propVar.dblVal;
-        PropVariantClear(&propVar);
-        // 셔터스피드
-        PropVariantInit(&propVar);
-        if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_ExposureTime, &propVar)) && propVar.vt == VT_R8) {
-            img.exposureTime = propVar.dblVal;
-            if (img.exposureTime >= 1.0) { char buf[32]; snprintf(buf, sizeof(buf), "%.1fs", img.exposureTime); img.exposureTimeStr = buf; }
-            else if (img.exposureTime > 0) { char buf[32]; snprintf(buf, sizeof(buf), "1/%ds", (int)std::round(1.0 / img.exposureTime)); img.exposureTimeStr = buf; }
-        }
-        PropVariantClear(&propVar);
-        // 카메라 모델 (수정됨)
-        PropVariantInit(&propVar);
-        if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_CameraModel, &propVar)) && propVar.vt == VT_LPWSTR) img.cameraModel = WideStringToUtf8(propVar.pwszVal);
-        PropVariantClear(&propVar);
-        // 렌즈 모델
-        PropVariantInit(&propVar);
-        if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_LensModel, &propVar)) && propVar.vt == VT_LPWSTR) img.lensModel = WideStringToUtf8(propVar.pwszVal);
-        PropVariantClear(&propVar);
+    bool isRaw = isRawFile(fs::path(img.wFilePath));
 
-        pItem2->Release();
+    // 1. RAW 파일인 경우: 윈도우 API가 렌즈 정보를 누락하므로 LibRaw를 최우선으로 사용하여 추출
+    if (isRaw) {
+#ifdef USE_LIBRAW
+        LibRaw RawProcessor;
+        // open_file은 무거운 픽셀 데이터를 건드리지 않고 헤더(EXIF)만 즉시 파싱합니다.
+        if (RawProcessor.open_file(img.wFilePath.c_str()) == LIBRAW_SUCCESS) {
+            img.iso = (int)RawProcessor.imgdata.other.iso_speed;
+            img.fNumber = RawProcessor.imgdata.other.aperture;
+            img.focalLength = RawProcessor.imgdata.other.focal_len;
+            img.exposureTime = RawProcessor.imgdata.other.shutter;
+
+            if (img.exposureTime >= 1.0) {
+                char buf[32]; snprintf(buf, sizeof(buf), "%.1fs", img.exposureTime); img.exposureTimeStr = buf;
+            }
+            else if (img.exposureTime > 0.0) {
+                char buf[32]; snprintf(buf, sizeof(buf), "1/%ds", (int)std::round(1.0 / img.exposureTime)); img.exposureTimeStr = buf;
+            }
+
+            // 카메라 및 렌즈 모델 문자열 복사
+            if (strlen(RawProcessor.imgdata.idata.model) > 0) img.cameraModel = RawProcessor.imgdata.idata.model;
+            if (strlen(RawProcessor.imgdata.lens.Lens) > 0) img.lensModel = RawProcessor.imgdata.lens.Lens;
+
+            RawProcessor.recycle();
+        }
+#endif
     }
+
+    // 2. 윈도우 기본 API 
+    // (JPG 파일이거나, LibRaw가 렌즈/카메라 정보를 찾지 못해 비어있을 경우에만 빈칸 땜빵용으로 실행)
+    if (!isRaw || img.lensModel.empty() || img.cameraModel.empty()) {
+        IShellItem2* pItem2 = nullptr;
+        HRESULT hr = SHCreateItemFromParsingName(img.wFilePath.c_str(), NULL, IID_PPV_ARGS(&pItem2));
+        if (SUCCEEDED(hr)) {
+            PROPVARIANT propVar;
+
+            if (img.iso == 0) {
+                PropVariantInit(&propVar);
+                if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_ISOSpeed, &propVar)) && propVar.vt == VT_UI2) img.iso = propVar.uiVal;
+                PropVariantClear(&propVar);
+            }
+            if (img.fNumber == 0.0) {
+                PropVariantInit(&propVar);
+                if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_FNumber, &propVar)) && propVar.vt == VT_R8) img.fNumber = propVar.dblVal;
+                PropVariantClear(&propVar);
+            }
+            if (img.focalLength == 0.0) {
+                PropVariantInit(&propVar);
+                if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_FocalLength, &propVar)) && propVar.vt == VT_R8) img.focalLength = propVar.dblVal;
+                PropVariantClear(&propVar);
+            }
+            if (img.exposureTime == 0.0) {
+                PropVariantInit(&propVar);
+                if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_ExposureTime, &propVar)) && propVar.vt == VT_R8) {
+                    img.exposureTime = propVar.dblVal;
+                    if (img.exposureTime >= 1.0) { char buf[32]; snprintf(buf, sizeof(buf), "%.1fs", img.exposureTime); img.exposureTimeStr = buf; }
+                    else if (img.exposureTime > 0) { char buf[32]; snprintf(buf, sizeof(buf), "1/%ds", (int)std::round(1.0 / img.exposureTime)); img.exposureTimeStr = buf; }
+                }
+                PropVariantClear(&propVar);
+            }
+            if (img.cameraModel.empty()) {
+                PropVariantInit(&propVar);
+                if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_CameraModel, &propVar)) && propVar.vt == VT_LPWSTR) img.cameraModel = WideStringToUtf8(propVar.pwszVal);
+                PropVariantClear(&propVar);
+            }
+            if (img.lensModel.empty()) {
+                PropVariantInit(&propVar);
+                if (SUCCEEDED(pItem2->GetProperty(PKEY_Photo_LensModel, &propVar)) && propVar.vt == VT_LPWSTR) img.lensModel = WideStringToUtf8(propVar.pwszVal);
+                PropVariantClear(&propVar);
+            }
+
+            pItem2->Release();
+        }
+    }
+
     img.exifLoaded = true;
 }
 
 // 백그라운드에서 EXIF를 조용히 수집하는 스레드
 static std::thread g_exifThread;
 static std::atomic<bool> g_exifTaskRunning{ false };
+static std::mutex g_exifPriorityMutex;         // 🌟 추가: 우선순위 락
+static std::wstring g_priorityExifWPath = L""; // 🌟 추가: 최우선으로 읽어올 파일 경로
+
 void RunBackgroundExifScanner() {
     if (g_exifThread.joinable()) { g_exifTaskRunning = false; g_exifThread.join(); }
     g_exifTaskRunning = true;
@@ -1346,21 +1391,68 @@ void RunBackgroundExifScanner() {
         CoInitializeEx(NULL, COINIT_MULTITHREADED);
         std::set<std::string> extSet, camSet, lensSet;
 
-        for (size_t i = 0; i < g_allImages.size(); ++i) {
-            if (!g_exifTaskRunning) break;
-            if (!g_allImages[i].exifLoaded) LoadExtendedExif(g_allImages[i]);
+        bool allLoaded = false;
+        while (g_exifTaskRunning && !allLoaded) {
+            // 1. 가장 먼저 선택된 사진(우선순위)이 있는지 확인하고 처리
+            std::wstring priorityPath;
+            {
+                std::lock_guard<std::mutex> lock(g_exifPriorityMutex);
+                priorityPath = g_priorityExifWPath;
+            }
 
-            extSet.insert(g_allImages[i].extension);
-            if (!g_allImages[i].cameraModel.empty()) camSet.insert(g_allImages[i].cameraModel);
-            if (!g_allImages[i].lensModel.empty()) lensSet.insert(g_allImages[i].lensModel);
+            if (!priorityPath.empty()) {
+                for (auto& img : g_allImages) {
+                    if (img.wFilePath == priorityPath && !img.exifLoaded) {
+                        LoadExtendedExif(img);
+                        break;
+                    }
+                }
+            }
+
+            // 2. 순차적으로 스캔 진행
+            bool loadedOne = false;
+            for (size_t i = 0; i < g_allImages.size(); ++i) {
+                if (!g_exifTaskRunning) break;
+
+                // 순차 스캔 중 사용자가 다른 사진을 클릭하면 즉시 루프를 멈추고 새 사진으로 달려감
+                {
+                    std::lock_guard<std::mutex> lock(g_exifPriorityMutex);
+                    if (g_priorityExifWPath != priorityPath && !g_priorityExifWPath.empty()) {
+                        loadedOne = true;
+                        break;
+                    }
+                }
+
+                if (!g_allImages[i].exifLoaded) {
+                    LoadExtendedExif(g_allImages[i]);
+
+                    extSet.insert(g_allImages[i].extension);
+                    if (!g_allImages[i].cameraModel.empty()) camSet.insert(g_allImages[i].cameraModel);
+                    if (!g_allImages[i].lensModel.empty()) lensSet.insert(g_allImages[i].lensModel);
+
+                    loadedOne = true;
+
+                    // 화면 UI 갱신을 위해 50장마다 한 번씩 드롭다운 메뉴 업데이트
+                    if (i % 50 == 0) {
+                        std::lock_guard<std::mutex> lock(g_dataMutex);
+                        g_extList = { "All" }; g_cameraList = { "All" }; g_lensList = { "All" };
+                        for (const auto& e : extSet) g_extList.push_back(e);
+                        for (const auto& c : camSet) g_cameraList.push_back(c);
+                        for (const auto& l : lensSet) g_lensList.push_back(l);
+                    }
+                }
+            }
+            if (!loadedOne) allLoaded = true; // 더 이상 읽을 사진이 없으면 무한루프 종료
         }
 
-        // 수집된 목록으로 드롭다운 메뉴 업데이트
-        std::lock_guard<std::mutex> lock(g_dataMutex);
-        g_extList = { "All" }; g_cameraList = { "All" }; g_lensList = { "All" };
-        for (const auto& e : extSet) g_extList.push_back(e);
-        for (const auto& c : camSet) g_cameraList.push_back(c);
-        for (const auto& l : lensSet) g_lensList.push_back(l);
+        // 모든 스캔이 끝나면 최종 드롭다운 메뉴 100% 업데이트
+        if (g_exifTaskRunning) {
+            std::lock_guard<std::mutex> lock(g_dataMutex);
+            g_extList = { "All" }; g_cameraList = { "All" }; g_lensList = { "All" };
+            for (const auto& e : extSet) g_extList.push_back(e);
+            for (const auto& c : camSet) g_cameraList.push_back(c);
+            for (const auto& l : lensSet) g_lensList.push_back(l);
+        }
 
         CoUninitialize();
         });
@@ -1450,8 +1542,9 @@ int main() {
             if (newIndex >= (int)loadedImages.size()) newIndex = (int)loadedImages.size() - 1;
             if (newIndex == selectedIndex) return;
             selectedIndex = newIndex;
-            zoomLevel = 1.0f;
-            panOffset = ImVec2(0.0f, 0.0f);
+            //이미지 넘어갈때 줌 배율 위치값 초기화 변수인데 임시로 비활성화시킴
+            //zoomLevel = 1.0f;
+            //panOffset = ImVec2(0.0f, 0.0f);
             scrollToSelection = true; // 선택이 변경되었으므로 스크롤을 이동시키라는 신호 ON
 
             ReleaseCurrentImage();
@@ -1462,37 +1555,57 @@ int main() {
                 g_currentImageSRV = cached; g_currentImageWidth = w; g_currentImageHeight = h; selectedRequestId = 0;
             }
 
-            //  그룹 단위 스마트 프리패칭 (Pre-fetching)
-            std::vector<int> indicesToLoad;
-            int currentGroup = img.groupID;
-
-            // 현재 그룹의 시작과 끝 인덱스 계산 (이진 탐색으로 초고속 서치)
-            auto itStart = std::lower_bound(loadedImages.begin(), loadedImages.end(), currentGroup,
-                [](const ImageData& item, int g) { return item.groupID < g; });
-            auto itEnd = std::upper_bound(loadedImages.begin(), loadedImages.end(), currentGroup,
-                [](int g, const ImageData& item) { return g < item.groupID; });
-
-            int startIdx = (int)std::distance(loadedImages.begin(), itStart);
-            int endIdx = (int)std::distance(loadedImages.begin(), itEnd);
-
-            // 1순위: 현재 화면에 즉시 띄워야 할 사진 (캐시에 없을 경우 가장 먼저 큐에 삽입)
-            if (!cached) indicesToLoad.push_back(selectedIndex);
-
-            // 2순위: 현재 그룹의 '나머지 사진들 전부'를 백그라운드 로딩 큐에 밀어넣기
-            for (int index = startIdx; index < endIdx; ++index) {
-                if (index == selectedIndex) continue;
-                int cachedWidth = 0, cachedHeight = 0;
-                ID3D11ShaderResourceView* prefetched = g_textureCache.Get(loadedImages[index].filePath, cachedWidth, cachedHeight);
-                if (prefetched) prefetched->Release();
-                else indicesToLoad.push_back(index);
+            // 🌟 1. EXIF 백그라운드 스레드에게 "이 사진부터 당장 읽어!" 라고 우선순위 지시
+            {
+                std::lock_guard<std::mutex> lock(g_exifPriorityMutex);
+                g_priorityExifWPath = img.wFilePath;
             }
 
-            // 3순위 (보너스): 우측 방향키 딜레이 제로를 위해 '다음 그룹의 첫 사진' 1장 몰래 가져오기
-            if (endIdx < (int)loadedImages.size()) {
-                int cachedWidth = 0, cachedHeight = 0;
-                ID3D11ShaderResourceView* prefetched = g_textureCache.Get(loadedImages[endIdx].filePath, cachedWidth, cachedHeight);
-                if (prefetched) prefetched->Release();
-                else indicesToLoad.push_back(endIdx);
+            // 🌟 2. 스마트 프리패칭 최적화 (병목 방지)
+            std::vector<int> indicesToLoad;
+
+            if (g_enableGrouping) {
+                // 기존 로직: 그룹이 활성화되어 있을 때는 씬 전체를 로딩
+                int currentGroup = img.groupID;
+                auto itStart = std::lower_bound(loadedImages.begin(), loadedImages.end(), currentGroup,
+                    [](const ImageData& item, int g) { return item.groupID < g; });
+                auto itEnd = std::upper_bound(loadedImages.begin(), loadedImages.end(), currentGroup,
+                    [](int g, const ImageData& item) { return g < item.groupID; });
+
+                int startIdx = (int)std::distance(loadedImages.begin(), itStart);
+                int endIdx = (int)std::distance(loadedImages.begin(), itEnd);
+
+                if (!cached) indicesToLoad.push_back(selectedIndex);
+
+                for (int index = startIdx; index < endIdx; ++index) {
+                    if (index == selectedIndex) continue;
+                    int cw = 0, ch = 0;
+                    ID3D11ShaderResourceView* prefetched = g_textureCache.Get(loadedImages[index].filePath, cw, ch);
+                    if (prefetched) prefetched->Release();
+                    else indicesToLoad.push_back(index);
+                }
+
+                if (endIdx < (int)loadedImages.size()) {
+                    int cw = 0, ch = 0;
+                    ID3D11ShaderResourceView* prefetched = g_textureCache.Get(loadedImages[endIdx].filePath, cw, ch);
+                    if (prefetched) prefetched->Release();
+                    else indicesToLoad.push_back(endIdx);
+                }
+            }
+            else {
+                // 🌟 3. 그룹화 해제 시 최적화: 수천 장 동시 큐잉을 방지하고 앞뒤 5장만 미리 로딩
+                if (!cached) indicesToLoad.push_back(selectedIndex);
+
+                int startIdx = (std::max)(0, selectedIndex - 2);
+                int endIdx = (std::min)((int)loadedImages.size(), selectedIndex + 6);
+
+                for (int index = startIdx; index < endIdx; ++index) {
+                    if (index == selectedIndex) continue;
+                    int cw = 0, ch = 0;
+                    ID3D11ShaderResourceView* prefetched = g_textureCache.Get(loadedImages[index].filePath, cw, ch);
+                    if (prefetched) prefetched->Release();
+                    else indicesToLoad.push_back(index);
+                }
             }
 
             // 일꾼 스레드들에게 기존 작업을 멈추고 이 리스트를 최우선으로 처리하라고 명령!
@@ -1668,7 +1781,7 @@ int main() {
             }
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("체크 시 이미지를 최적화(축소)하지 않고 원본 크기(4K, 8K 등) 그대로 비디오 메모리에 올립니다.\n(확대 시 화질은 매우 선명해지지만 램 용량을 많이 차지하게 됩니다)");
+            ImGui::SetTooltip("사양이 좋지 않은 컴퓨터는 체크를 권장하지 않습니다.\n(확대 시 화질은 매우 선명해지지만 램 용량을 많이 차지하게 됩니다)");
         }
         ImGui::Spacing();
 
@@ -1725,10 +1838,10 @@ int main() {
                 }
                 catch (...) {}
 
-                // 🌟 필터 및 정렬을 거쳐 loadedImages를 구성
+                // 필터 및 정렬을 거쳐 loadedImages를 구성
                 ApplyFiltersAndSort(loadedImages, totalGroups);
 
-                // 🌟 백그라운드 메타데이터 스캐너 가동! (화면 지연 없음)
+                // 백그라운드 메타데이터 스캐너 가동! (화면 지연 없음)
                 RunBackgroundExifScanner();
 
                 initialPreloadCount = (std::min)((int)loadedImages.size(), 10);
@@ -1805,19 +1918,41 @@ int main() {
             ImGui::Text("총 로드된 사진: %d장 | 생성된 그룹: %d개", (int)loadedImages.size(), totalGroups);
             ImGui::Spacing();
 
-            // [ 신규 추가 ] 필터 및 정렬 옵션 바 UI
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.1f, 0.12f, 0.15f, 0.6f));
+            // 필터 및 정렬 옵션 바 UI
+            // 배경(ChildBg)과 드롭다운 팝업(PopupBg)의 투명도를 1.0f(완전 불투명)로 설정
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.12f, 0.14f, 0.18f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.15f, 0.18f, 0.22f, 1.0f));
+
             ImGui::BeginChild("FilterSortBar", ImVec2(0, 45), true, ImGuiWindowFlags_NoScrollbar);
 
             bool filterChanged = false;
 
+            // 🌟 수정: 정렬 방식이 '시간순(0)'이 아닐 경우 체크박스를 강제 해제하고 회색으로 잠금(Disabled)
+            bool isNotTimeSort = (g_sortMode != 0);
+            if (isNotTimeSort) {
+                if (g_enableGrouping) {
+                    g_enableGrouping = false;
+                    filterChanged = true;
+                }
+                ImGui::BeginDisabled(); // 비활성화 시작
+            }
+
             // 그룹화 토글
             if (ImGui::Checkbox("씬(Scene) 단위 그룹화 켜기", &g_enableGrouping)) filterChanged = true;
+
+            if (isNotTimeSort) {
+                ImGui::EndDisabled(); // 비활성화 끝
+            }
             ImGui::SameLine(0, 20.0f);
 
             // 정렬 드롭다운
             ImGui::PushItemWidth(120.0f);
-            if (ImGui::Combo("정렬", &g_sortMode, "촬영 시간순\0ISO 순\0조리개(F) 순\0셔터스피드 순\0화각(mm) 순\0\0")) filterChanged = true;
+            if (ImGui::Combo("정렬", &g_sortMode, "촬영 시간순\0ISO 순\0조리개(F) 순\0셔터스피드 순\0화각(mm) 순\0\0")) {
+                filterChanged = true;
+                if (g_sortMode != 0) {
+                    g_enableGrouping = false; // 다른 정렬 방식으로 바뀌는 순간 즉시 연동 해제
+                }
+            }
             ImGui::PopItemWidth();
             ImGui::SameLine(0, 20.0f);
 
@@ -1840,13 +1975,42 @@ int main() {
             RenderFilterCombo("렌즈", g_filterLens, g_lensList);
 
             ImGui::EndChild();
-            ImGui::PopStyleColor();
+            ImGui::PopStyleColor(2); // Push를 2번 했으므로 Pop도 2번 호출하여 스타일 복구
 
             // 필터가 변경되었으면 재적용하고 리스트를 갱신
             if (filterChanged) {
+                // 1. 변경 전, 현재 보고 있던 사진의 고유 경로를 책갈피처럼 기억해 둡니다.
+                std::wstring prevSelectedPath = L"";
+                if (selectedIndex >= 0 && selectedIndex < (int)loadedImages.size()) {
+                    prevSelectedPath = loadedImages[selectedIndex].wFilePath;
+                }
+
+                // 2. 필터 및 정렬 재적용 (리스트 재구성)
                 ApplyFiltersAndSort(loadedImages, totalGroups);
-                selectedIndex = -1; // 갱신 후 선택 초기화
+
+                // 3. 새로 구성된 리스트에서 아까 보던 사진이 어디로 갔는지 찾아냅니다.
+                int newSelectedIndex = -1;
+                if (!prevSelectedPath.empty()) {
+                    for (int i = 0; i < (int)loadedImages.size(); ++i) {
+                        if (loadedImages[i].wFilePath == prevSelectedPath) {
+                            newSelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                // 4. 사진이 여전히 목록에 존재한다면 화면을 유지한 채 인덱스만 업데이트!
+                if (newSelectedIndex != -1) {
+                    selectedIndex = newSelectedIndex;
+                    scrollToSelection = true; // 왼쪽 리스트의 스크롤도 바뀐 위치로 부드럽게 따라가도록 설정
+                }
+                else {
+                    // 확장자/렌즈 필터 등으로 인해 보던 사진이 목록에서 아예 제외된 경우에만 뷰어를 비웁니다.
+                    selectedIndex = -1;
+                    ReleaseCurrentImage();
+                }
             }
+
             // 리스트를 담을 하위 스크롤 박스 생성
             // 좌우 패널로 분리: 왼쪽은 리스트, 오른쪽은 선택된 사진 뷰어
             ImGui::Columns(2, "TwoPane", true);
@@ -1962,7 +2126,7 @@ int main() {
             // --- 오른쪽: 이미지 뷰어 ---
             ImGui::BeginChild("RightPanel", ImVec2(0, 0), false,
                 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-            // 🌟 뷰어 메타데이터 정보창 (Viewer Info)
+            // 뷰어 메타데이터 정보창 (Viewer Info)
             {
                 ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "=== Viewer Info ===");
                 ImGui::Text("Size: %d x %d | Decode Q: %llu | Upload Q: %llu",
@@ -1971,18 +2135,27 @@ int main() {
                 ImGui::Separator();
 
                 if (selectedIndex >= 0 && selectedIndex < (int)loadedImages.size()) {
-                    std::lock_guard<std::mutex> lock(g_dataMutex);
-                    const auto& img = loadedImages[selectedIndex];
+                    ImageData displayImg = loadedImages[selectedIndex];
+
+                    // 복사된 loadedImages 대신 백그라운드가 실시간 갱신 중인 원본(g_allImages)을 직접 조회
+                    {
+                        std::lock_guard<std::mutex> lock(g_dataMutex);
+                        auto it = std::find_if(g_allImages.begin(), g_allImages.end(),
+                            [&](const ImageData& a) { return a.wFilePath == displayImg.wFilePath; });
+                        if (it != g_allImages.end() && it->exifLoaded) {
+                            displayImg = *it;
+                        }
+                    }
 
                     ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.4f, 1.0f), "[ Camera & Lens ]");
-                    ImGui::Text("📷 기종 : %s", img.cameraModel.empty() ? (img.exifLoaded ? "정보 없음" : "Reading...") : img.cameraModel.c_str());
-                    ImGui::Text("🔭 렌즈 : %s", img.lensModel.empty() ? (img.exifLoaded ? "정보 없음" : "Reading...") : img.lensModel.c_str());
+                    ImGui::Text("기종 : %s", displayImg.cameraModel.empty() ? (displayImg.exifLoaded ? "정보 없음" : "Reading...") : displayImg.cameraModel.c_str());
+                    ImGui::Text("렌즈 : %s", displayImg.lensModel.empty() ? (displayImg.exifLoaded ? "정보 없음" : "Reading...") : displayImg.lensModel.c_str());
                     ImGui::Spacing();
 
                     ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.4f, 1.0f), "[ Shooting Data ]");
-                    ImGui::Text("⚙️ 설정 : %s | F/%.1f | ISO %d | %.0fmm",
-                        img.exposureTimeStr.empty() ? "-" : img.exposureTimeStr.c_str(),
-                        img.fNumber, img.iso, img.focalLength);
+                    ImGui::Text("설정 : %s | F/%.1f | ISO %d | %.0fmm",
+                        displayImg.exposureTimeStr.empty() ? "-" : displayImg.exposureTimeStr.c_str(),
+                        displayImg.fNumber, displayImg.iso, displayImg.focalLength);
                     ImGui::Separator();
                 }
             }
@@ -1999,7 +2172,10 @@ int main() {
                 ImGui::SetCursorPosY((avail.y - ImGui::GetTextLineHeight()) * 0.5f);
                 ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.6f, 1.0f), "%s", loading.c_str());
             }
-            else if (g_currentImageSRV && g_currentImageWidth > 0 && g_currentImageHeight > 0) { // 이미 로드된 이미지 표시
+            // 수정: selectedIndex가 안전한 범위 내에 있을 때만 실행되도록 조건 2줄 추가
+            else if (g_currentImageSRV && g_currentImageWidth > 0 && g_currentImageHeight > 0 &&
+                selectedIndex >= 0 && selectedIndex < (int)loadedImages.size()) {
+
                 float imgW = (float)g_currentImageWidth;
                 float imgH = (float)g_currentImageHeight;
                 ImGui::Text("%s", loadedImages[selectedIndex].fileName.c_str());
@@ -2114,11 +2290,24 @@ int main() {
 
                 ImGui::SetCursorScreenPos(togglePos);
 
+                // AF 데이터가 없는 사진이면 체크박스를 비활성화하고 창을 강제로 닫음
+                bool currentHasAF = loadedImages[selectedIndex].hasAF;
+                if (!currentHasAF) {
+                    showAFPoint = false;
+                    showPiP = false;
+                    ImGui::BeginDisabled(); // 컨트롤을 조작 불가능한 회색 상태로 잠금
+                }
+
                 // 체크박스 1: AF Point
                 ImGui::Checkbox(textAF, &showAFPoint);
                 ImGui::SameLine(0, 15.0f); // 체크박스 사이의 간격
                 // 체크박스 2: PiP 뷰어 토글
                 ImGui::Checkbox(textPiP, &showPiP);
+
+                // 잠금 해제
+                if (!currentHasAF) {
+                    ImGui::EndDisabled();
+                }
 
                 // ==============================================================
                 // [ 뷰어 2: AF 영역 확대 뷰어 (우측 하단 PiP 오버레이 - 정사각형) ]
@@ -2157,7 +2346,7 @@ int main() {
                     const ImVec2 canvasMax2(canvasMin2.x + avail2.x, canvasMin2.y + avail2.y);
                     const ImVec2 canvasCenter2(canvasMin2.x + avail2.x * 0.5f, canvasMin2.y + avail2.y * 0.5f);
 
-                    static float focusMagnifyScale = 1.75f;
+                    static float focusMagnifyScale = 1.00f;
                     ImVec2 drawSize2(imgW * focusMagnifyScale, imgH * focusMagnifyScale);
 
                     float focusX = 0.5f;

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📸 Project-Fast_PIC
+# 📸 Project-FastPic
 **An Ultra-Fast Photo Culling Tool Built for Photographers**
 
 ![C++17](https://img.shields.io/badge/C%2B%2B17-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)
@@ -10,10 +10,81 @@
 </div>
 
 <br/>
+<!-- ==================== 영문 버전 (기본 닫힘) ==================== -->
+<details name="language-switch">
+<summary><b>🇺🇸 English Documentation (Click to Expand / Collapse)</b></summary>
+<br/>
+
+> **Project-Fast_PIC** is a Windows desktop image viewer designed to browse and cull thousands of high-resolution RAW and JPG photos with zero latency. 
+> Built on C++ and DirectX 11 hardware acceleration, it delivers fast processing speeds and focuses on maximizing photo culling efficiency through an intuitive UI and keyboard-centric navigation.
+
+This project was built and evolved upon the minimal project structure and `ImageData` data structure definition created under the initial implementation plan of **Project Kestrel**.
+
+---
+
+## 🚀 Features
+
+### ⚡ Ultra-Fast Image Loading & Processing
+- **Lazy Loading:** Instantly constructs the image list using OS file system metadata without opening the image files during folder scans.
+- **Background Caching (Pre-fetching):** Proactively decodes photos in the current and next groups into VRAM using multi-threaded background workers.
+- **Resolution Control:** Seamlessly switch in real time between optimized (downscaled) loading for rapid browsing and full-resolution loading for detailed inspection.
+
+### 🧭 Efficient Navigation & Viewer
+- **Group-Based Browsing:** Groups photos based on capture time (time-gap), allowing you to jump across entire scenes using the Left/Right arrow keys.
+- **Safe Wrap-Around Navigation:** Up/Down arrow keys cycle strictly within the current group without accidentally crossing into adjacent groups, maintaining your workflow.
+- **Smart Auto-Scroll:** The file list automatically follows your selection during keyboard navigation, while yielding control during mouse wheel scrolling to prevent view conflicts.
+- **AF Focus PiP Viewer:** Analyzes EXIF metadata to display the camera's autofocus area in a bottom-right Picture-in-Picture (PiP) loupe window, supporting custom zoom levels and window resizing.
+
+### 📂 Photo Culling & Batch Export
+- **Status Labeling:** Assign 3-color traffic light statuses using the <kbd>1</kbd> (Pick), <kbd>2</kbd> (Hold), and <kbd>3</kbd> (Reject) keys, automatically advancing to the next photo.
+- **Batch Export:** Copy all photos marked as Pick to a target folder at once (<kbd>E</kbd> key) with automatic filename collision handling.
+
+### 🎨 UI & Compatibility
+- Features a translucent Glassmorphism UI with background dimming on modal popups to ensure clear text readability.
+- Fully supports non-ASCII (including Korean) filenames and directory paths via native wide-string (`std::wstring`) handling.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Language:** C++17
+- **Graphics API:** DirectX 11 (Hardware Acceleration)
+- **OS API:** Windows API / WIC (Windows Imaging Component)
+
+---
+
+## ⌨️ Shortcuts
+
+| Shortcut | Description |
+| :--- | :--- |
+| <kbd>Up</kbd> / <kbd>Down</kbd> | Move 1 photo at a time within the current group (wraps around at the end) |
+| <kbd>Left</kbd> / <kbd>Right</kbd> | Jump to the previous / next group (burst sequence) |
+| <kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd> | Label as Pick, Hold, or Reject (auto-advances to the next photo) |
+| <kbd>E</kbd> | Batch export all Picked photos to a selected folder |
+| **Mouse Wheel** | Zoom in / out on the main viewer |
+| **Left-Click Drag** | Pan zoomed image / Resize the PiP window |
+| **Middle-Click (Double-Click)** | Fit to screen (reset zoom and pan position) |
+
+---
+
+## 🤝 Credits & Acknowledgements
+
+- **[Dear ImGui](https://github.com/ocornut/imgui):** UI Framework (MIT License)
+- **[LibRaw](https://github.com/LibRaw/LibRaw):** RAW image processing (LGPL 2.1)
+- **[stb_image](https://github.com/nothings/stb):** Image loading (MIT / Public Domain)
+- **[ExifTool](https://exiftool.org/) by Phil Harvey:** EXIF metadata parsing
+
+## 📄 License
+
+This project is licensed under the **GPL-3.0 License**. See the `LICENSE` file in the repository for details.
+
+</details>
+
+<br/>
 
 <!-- ==================== 한국어 버전 (기본 열림) ==================== -->
-<details name="language-switch">
-<summary><b>🇰🇷 한국어 설명 보기 (Click to Expand / Collapse)</b></summary>
+<details name="language-switch" open>
+<summary><b>🇰🇷 한국어 설명 보기 (클릭하여 펼치기/접기)</b></summary>
 <br/>
 
 > **Project-Fast_PIC**은 수천 장의 고해상도 RAW 및 JPG 사진을 지연 없이 열람하고 선별(Culling)하기 위해 설계된 윈도우 데스크톱 이미지 뷰어입니다. 
@@ -82,73 +153,3 @@
 </details>
 
 <br/>
-
-<!-- ==================== 영문 버전 (기본 닫힘) ==================== -->
-<details name="language-switch" open>
-<summary><b>🇺🇸 English Documentation (Click to Expand / Collapse)</b></summary>
-<br/>
-
-> **Project-Fast_PIC** is a Windows desktop image viewer designed to browse and cull thousands of high-resolution RAW and JPG photos with zero latency. 
-> Built on C++ and DirectX 11 hardware acceleration, it delivers fast processing speeds and focuses on maximizing photo culling efficiency through an intuitive UI and keyboard-centric navigation.
-
-This project was built and evolved upon the minimal project structure and `ImageData` data structure definition created under the initial implementation plan of **Project Kestrel**.
-
----
-
-## 🚀 Features
-
-### ⚡ Ultra-Fast Image Loading & Processing
-- **Lazy Loading:** Instantly constructs the image list using OS file system metadata without opening the image files during folder scans.
-- **Background Caching (Pre-fetching):** Proactively decodes photos in the current and next groups into VRAM using multi-threaded background workers.
-- **Resolution Control:** Seamlessly switch in real time between optimized (downscaled) loading for rapid browsing and full-resolution loading for detailed inspection.
-
-### 🧭 Efficient Navigation & Viewer
-- **Group-Based Browsing:** Groups photos based on capture time (time-gap), allowing you to jump across entire scenes using the Left/Right arrow keys.
-- **Safe Wrap-Around Navigation:** Up/Down arrow keys cycle strictly within the current group without accidentally crossing into adjacent groups, maintaining your workflow.
-- **Smart Auto-Scroll:** The file list automatically follows your selection during keyboard navigation, while yielding control during mouse wheel scrolling to prevent view conflicts.
-- **AF Focus PiP Viewer:** Analyzes EXIF metadata to display the camera's autofocus area in a bottom-right Picture-in-Picture (PiP) loupe window, supporting custom zoom levels and window resizing.
-
-### 📂 Photo Culling & Batch Export
-- **Status Labeling:** Assign 3-color traffic light statuses using the <kbd>1</kbd> (Pick), <kbd>2</kbd> (Hold), and <kbd>3</kbd> (Reject) keys, automatically advancing to the next photo.
-- **Batch Export:** Copy all photos marked as Pick to a target folder at once (<kbd>E</kbd> key) with automatic filename collision handling.
-
-### 🎨 UI & Compatibility
-- Features a translucent Glassmorphism UI with background dimming on modal popups to ensure clear text readability.
-- Fully supports non-ASCII (including Korean) filenames and directory paths via native wide-string (`std::wstring`) handling.
-
----
-
-## 🛠️ Tech Stack
-
-- **Language:** C++17
-- **Graphics API:** DirectX 11 (Hardware Acceleration)
-- **OS API:** Windows API / WIC (Windows Imaging Component)
-
----
-
-## ⌨️ Shortcuts
-
-| Shortcut | Description |
-| :--- | :--- |
-| <kbd>Up</kbd> / <kbd>Down</kbd> | Move 1 photo at a time within the current group (wraps around at the end) |
-| <kbd>Left</kbd> / <kbd>Right</kbd> | Jump to the previous / next group (burst sequence) |
-| <kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd> | Label as Pick, Hold, or Reject (auto-advances to the next photo) |
-| <kbd>E</kbd> | Batch export all Picked photos to a selected folder |
-| **Mouse Wheel** | Zoom in / out on the main viewer |
-| **Left-Click Drag** | Pan zoomed image / Resize the PiP window |
-| **Middle-Click (Double-Click)** | Fit to screen (reset zoom and pan position) |
-
----
-
-## 🤝 Credits & Acknowledgements
-
-- **[Dear ImGui](https://github.com/ocornut/imgui):** UI Framework (MIT License)
-- **[LibRaw](https://github.com/LibRaw/LibRaw):** RAW image processing (LGPL 2.1)
-- **[stb_image](https://github.com/nothings/stb):** Image loading (MIT / Public Domain)
-- **[ExifTool](https://exiftool.org/) by Phil Harvey:** EXIF metadata parsing
-
-## 📄 License
-
-This project is licensed under the **GPL-3.0 License**. See the `LICENSE` file in the repository for details.
-
-</details>
