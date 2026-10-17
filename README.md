@@ -2,7 +2,10 @@
 <img src="other/MainLogo.png" alt="FastPIC Logo" width="400"/>
 <br/>
 <div align="center">
+  
 **An Ultra-Fast Photo Culling Tool Built for Photographers**
+
+<br/>
 
 ![C++17](https://img.shields.io/badge/C%2B%2B17-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)
 ![DirectX 11](https://img.shields.io/badge/DirectX_11-107C10?style=for-the-badge&logo=windows&logoColor=white)
