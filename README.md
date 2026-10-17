@@ -1,5 +1,10 @@
 <div align="center">
 
+<img src="other/MainLogo.png" alt="FastPIC Logo" width="400"/>
+
+<br/>
+<div align="center">
+
 # 📸 Project-FastPic
 **An Ultra-Fast Photo Culling Tool Built for Photographers**
 
