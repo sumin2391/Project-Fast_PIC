@@ -16,7 +16,7 @@
 [![Download FastPIC](https://img.shields.io/badge/📥_Download_FastPIC_v1.0.0-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/sumin2391/Project-Fast_PIC/releases/download/v1.0.0/FastPic.v1.0.0.7z)
 
 </div>
-
+<div align="left">
 </div>
 
 <br/>
